@@ -99,7 +99,7 @@ pickle.dump(bline, open('bline.npy', 'wb'))
 '''
 fs = 4                  # 4Hz sampling rate
 duration = 30*60*fs     # analyze the last 30-min data
-segLen = 40             # 40 samples/10 seconds per segment
+segLen = 60             # 40 samples/10 seconds per segment
 numSeg = duration/segLen
 fhr = pickle.load(open('fhr.npy', 'rb'))
 bline = pickle.load(open('bline.npy', 'rb'))
@@ -122,7 +122,7 @@ for idx in fhr:
         feat_vector[idx, t] = [mean, var, stv_std, stv_haa, ltv_delta, ltv_lti, sd1, sd2, ccm1,
                                power_vlf, power_lf, power_mf, power_hf, ratio]
     print '%d-th feature extraction complete' % idx
-np.save('./features/feats_time_freq_40', feat_vector)
+np.save('./features/feats_time_freq_%d' % segLen, feat_vector)
 
 
 '''
