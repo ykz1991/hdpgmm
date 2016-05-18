@@ -9,37 +9,37 @@ from hdpgmm_class import Gaussian, GibbsSampler
 np.seterr(divide='ignore')
 
 # selecting model and feature parameters: segment length, alpha, gamma
-segLens = [20, 60, 100, 120]
+segLens = [40, 60, 100, 120]
 alphas = [5.]
 gammas = [10.]
 idx = np.load('idx_ctu.npy')
+pH = np.load('pH.npy')
+pH = pH[idx]
+threshold = 7.15
+unhealthy = np.where(pH < threshold)[0]
+healthy = np.where(pH >= threshold)[0]
+label = pH < threshold                  # 1 for unhealthy, 0 for healthy
+skf = StratifiedKFold(label, 5)
 for segLen in segLens:
     feats = np.load('./features/feats_time_freq_%d.npy' % segLen)
     print 'segment length is ', segLen, 'samples'
-    pH = np.load('pH.npy')
     data = feats[idx, :, :]                 # use certain recordings according to idx
-    pH = pH[idx]
-    threshold = 7.15
     # data = data[:, :, [0, 1, 2, 3, 6, 7]]   # ARX coefficients, std, mean of rr interval
-    data = data[:, :, [0, 3, 5, 6, 7, 8]]   # mean, sti, lti, poincare
-    unhealthy = np.where(pH < threshold)[0]
-    healthy = np.where(pH >= threshold)[0]
-    label = pH < threshold                  # 1 for unhealthy, 0 for healthy
+    # data = data[:, :, [0, 3, 5, 6, 7, 8]]   # mean, sti, lti, poincare
     unhealthy_data = data[unhealthy]
     healthy_data = data[healthy]
-    skf = StratifiedKFold(label, 5)
-    tmp_accuracy = np.zeros(len(skf))
-    tmp_tnr = np.zeros(len(skf))
-    tmp_tpr = np.zeros(len(skf))
 
     for alpha in alphas:
         for gamma in gammas:
             print 'alpha is', alpha, ', gamma is', gamma
-            folder = 'time_%ds_6feats_alpha_%d_gamma_%d' % (segLen/4, alpha, gamma)
+            folder = 'time_freq_%ds_6feats_alpha_%d_gamma_%d' % (segLen/4, alpha, gamma)
             directory = './results/2_model/CV/%s/' % folder
             if not os.path.isdir(directory):
                 os.makedirs(directory)
 
+            tmp_accuracy = np.zeros(len(skf))
+            tmp_tnr = np.zeros(len(skf))
+            tmp_tpr = np.zeros(len(skf))
             run = 0
             CV_idx = {}
             iteration = 20
@@ -100,7 +100,6 @@ for run in CV_idx:
     p1 = np.array([all_loglike(data[i], weights_un, dists_un) for i in test])
     pred = (p0 < p1).astype(int)
     y = (pH[test] < threshold).astype(int)
-    tmp_accuracy[run] = 1.*np.sum(pred == y)/len(y)
     tmp_tpr[run] = 1.*np.sum(pred.astype(bool) & y.astype(bool))/np.sum(y)
     tmp_tnr[run] = 1.*np.sum(~pred.astype(bool) & ~y.astype(bool))/(len(y) - np.sum(y))
 
