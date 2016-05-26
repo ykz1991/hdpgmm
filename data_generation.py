@@ -1,5 +1,6 @@
 import numpy as np
 from hdpgmm_class import Gaussian, GibbsSampler
+import matplotlib.pyplot as plt
 import pickle
 from model_loglikelihood import dict2mix, mixture_logpdf, all_loglike
 
@@ -13,14 +14,30 @@ def mix_multivariate_normal(weights, dists, n):
     return corpus
 
 
-directory = './results/2_model/no_CV/time_freq_30s_feats_alpha_5_gamma_10/'
+directory = './results/2_model/no_CV/time_freq_60s_feats_alpha_5_gamma_10/'
 hdpgmm_un = pickle.load(open(directory + 'hdpgmm_un', 'rb'))
 hdpgmm_hl = pickle.load(open(directory + 'hdpgmm_hl', 'rb'))
+'''
+# plot log-likelihood against number of iterations
+plt.figure()
+x = np.arange(1, 21)
+plt.plot(x, hdpgmm_un.log_likelihoods, 'r')
+plt.xlim(1, 20)
+plt.xlabel('iteration')
+plt.ylabel('log-likelihood')
+plt.show()
+plt.figure()
+plt.plot(x, hdpgmm_hl.log_likelihoods, 'b')
+plt.xlim(1, 20)
+plt.xlabel('iteration')
+plt.ylabel('log-likelihood')
+plt.show()
+'''
 # transform class object to dictionary
 weights_hl, dists_hl = dict2mix(hdpgmm_hl.params)
 weights_un, dists_un = dict2mix(hdpgmm_un.params)
 
-num = 500000
+num = 100000
 corpus_hl = mix_multivariate_normal(weights_hl, dists_hl, num)
 corpus_un = mix_multivariate_normal(weights_un, dists_un, num)
 corpus = np.concatenate((corpus_hl, corpus_un), axis=0)
@@ -33,3 +50,4 @@ tpr = 1.*np.sum(pred.astype(bool) & y.astype(bool))/np.sum(y)
 tnr = 1.*np.sum(~pred.astype(bool) & ~y.astype(bool))/(len(y) - np.sum(y))
 print 'true positive rate is ', tpr
 print 'true negative rate is ', tnr
+print 'wra is ', tpr+tnr-1
