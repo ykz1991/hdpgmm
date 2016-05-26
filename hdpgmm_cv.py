@@ -9,10 +9,10 @@ from hdpgmm_class import Gaussian, GibbsSampler
 np.seterr(divide='ignore')
 
 # selecting model and feature parameters: segment length, alpha, gamma
-segLens = [40, 60, 100, 120]
+segLens = [60, 100, 120]
 alphas = [5.]
 gammas = [10.]
-idx = np.load('idx_ctu.npy')
+idx = np.load('idx_ctu_matlab.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
 threshold = 7.15
@@ -25,15 +25,15 @@ for segLen in segLens:
     print 'segment length is ', segLen, 'samples'
     data = feats[idx, :, :]                 # use certain recordings according to idx
     # data = data[:, :, [0, 1, 2, 3, 6, 7]]   # ARX coefficients, std, mean of rr interval
-    # data = data[:, :, [0, 3, 5, 6, 7, 8]]   # mean, sti, lti, poincare
+    data = data[:, :, [0, 3, 5, 6, 7, 8]]   # mean, sti, lti, poincare
     unhealthy_data = data[unhealthy]
     healthy_data = data[healthy]
 
     for alpha in alphas:
         for gamma in gammas:
             print 'alpha is', alpha, ', gamma is', gamma
-            folder = 'time_freq_%ds_6feats_alpha_%d_gamma_%d' % (segLen/4, alpha, gamma)
-            directory = './results/2_model/CV/%s/' % folder
+            folder = 'time_%ds_6feats_alpha_%d_gamma_%d' % (segLen/4, alpha, gamma)
+            directory = './results/2_model/CV_ml/%s/' % folder
             if not os.path.isdir(directory):
                 os.makedirs(directory)
 
@@ -70,9 +70,9 @@ for segLen in segLens:
                 CV_idx[run]['test'] = test
                 run += 1
 
-            pickle.dump(CV_idx, open('./results/2_model/CV/%s/CV_idx' % folder, 'wb'))
-            np.save('./results/2_model/CV/%s/tpr' % folder, tmp_tpr)
-            np.save('./results/2_model/CV/%s/tnr' % folder, tmp_tnr)
+            pickle.dump(CV_idx, open(directory + 'CV_idx', 'wb'))
+            np.save(directory + 'tpr', tmp_tpr)
+            np.save(directory + 'tnr', tmp_tnr)
             tpr = np.mean(tmp_tpr)
             tnr = np.mean(tmp_tnr)
             accuracy = np.mean(tmp_accuracy)
