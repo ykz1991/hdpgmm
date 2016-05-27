@@ -54,6 +54,7 @@ for segLen in segLens:
         y = np.concatenate((np.zeros(num), np.ones(num)))
         tpr = 1.*np.sum(pred.astype(bool) & y.astype(bool))/np.sum(y)
         tnr = 1.*np.sum(~pred.astype(bool) & ~y.astype(bool))/(len(y) - np.sum(y))
+        print 'segment length is %ds, alpha is %d, gamma is %d' % (segLen/4, alpha, gamma)
         print 'true positive rate is ', tpr
         print 'true negative rate is ', tnr
         print 'wra is ', tpr+tnr-1
