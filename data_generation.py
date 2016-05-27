@@ -20,7 +20,7 @@ for segLen in segLens:
     for param in params:
         alpha = param[0]
         gamma = param[1]
-        directory = './results/2_model/no_CV/time_freq_%ds_feats_alpha_%d_gamma_%d' % (segLen/4, alpha, gamma)
+        directory = './results/2_model/no_CV/time_freq_%ds_feats_alpha_%d_gamma_%d/' % (segLen/4, alpha, gamma)
         hdpgmm_un = pickle.load(open(directory + 'hdpgmm_un', 'rb'))
         hdpgmm_hl = pickle.load(open(directory + 'hdpgmm_hl', 'rb'))
         '''
