@@ -9,7 +9,7 @@ np.seterr(divide='ignore')
 segLens = [40, 80, 120, 160, 200, 240]
 alphas = [5.]
 gammas = [10.]
-params = [[1., 1.], [10., 10.], [100., 100], [1000., 1000.]]
+params = [[1, 1], [10., 10.], [100, 100], [1000, 1000]]
 idx = np.load('idx_ctu.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
@@ -32,17 +32,27 @@ for segLen in segLens:
         gamma = param[1]
         print 'alpha is', alpha, ', gamma is', gamma
         folder = 'time_freq_%ds_feats_alpha_%d_gamma_%d' % (segLen/4, alpha, gamma)
-        directory = './results/2_model/no_CV/%s/' % folder
+        directory = './results/2_model/no_CV_average/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
         # train two HDPGMM models
         iteration = 20
-        hdpgmm_un = GibbsSampler(snapshot_interval=10, compute_loglik=True)
-        hdpgmm_un._initialize(unhealthy_data, alpha=alpha, gamma=gamma)
-        hdpgmm_un.sample(iteration)
-        hdpgmm_un.pickle(directory, 'hdpgmm_un')
+        max_iteration = 100
+        step = 10
+        hdpgmm_un = GibbsSampler(snapshot_interval=5, compute_loglik=False)
+        hdpgmm_hl = GibbsSampler(snapshot_interval=5, compute_loglik=False)
 
-        hdpgmm_hl = GibbsSampler(snapshot_interval=10, compute_loglik=True)
+        hdpgmm_un._initialize(unhealthy_data, alpha=alpha, gamma=gamma)
         hdpgmm_hl._initialize(healthy_data, alpha=alpha, gamma=gamma)
+
+        hdpgmm_un.sample(iteration)
+        hdpgmm_un.pickle(directory, 'hdpgmm_un_%d-th_iter' % iteration)
         hdpgmm_hl.sample(iteration)
-        hdpgmm_hl.pickle(directory, 'hdpgmm_hl')
+        hdpgmm_hl.pickle(directory, 'hdpgmm_hl_%d-th_iter' % iteration)
+
+        for iter in xrange((max_iteration-iteration)/step):
+            hdpgmm_un.sample(step)
+            hdpgmm_un.pickle(directory, 'hdpgmm_un_%d-th_iter' % ((iter+1)*step+iteration))
+
+            hdpgmm_hl.sample(step)
+            hdpgmm_hl.pickle(directory, 'hdpgmm_hl_%d-th_iter' % ((iter+1)*step+iteration))
