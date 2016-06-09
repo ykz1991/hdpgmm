@@ -14,14 +14,14 @@ def mix_multivariate_normal(weights, dists, n):
     return corpus
 
 
-segLens = [40, 80, 120, 160, 200, 240]
-params = [[1., 1.], [10., 10.], [100., 100], [1000., 1000.]]
+segLens = [80, 120, 160, 200, 240]
+params = [[10., 10.], [100., 100], [1000., 1000.]]
 for segLen in segLens:
     for param in params:
         alpha = param[0]
         gamma = param[1]
         directory = './results/2_model/no_CV_average/time_freq_%ds_feats_alpha_%d_gamma_%d/' % (segLen/4, alpha, gamma)
-        num = 100000
+        num = 10000
         iter_start = 20
         iter_max = 100
         step_size = 10
@@ -67,7 +67,7 @@ for segLen in segLens:
             tpr = np.append(tpr, 1.*np.sum(pred.astype(bool) & y.astype(bool))/np.sum(y))
             tnr = np.append(tnr, 1.*np.sum(~pred.astype(bool) & ~y.astype(bool))/(len(y) - np.sum(y)))
 
-        # print 'segment length is %ds, alpha is %d, gamma is %d' % (segLen/4, alpha, gamma)
-        print 'true positive rate is ', np.mean(tpr)
-        print 'true negative rate is ', np.mean(tnr)
+        print 'segment length is %ds, alpha is %d, gamma is %d' % (segLen/4, alpha, gamma)
+        print 'true positive rate is ', np.mean(tpr), 'std is ', np.std(tpr)
+        print 'true negative rate is ', np.mean(tnr), 'std is ', np.std(tnr)
         print 'wra is ', np.mean(tpr)+np.mean(tnr)-1

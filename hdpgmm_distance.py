@@ -1,3 +1,6 @@
+# In this version, the Gibbs sampling results are averaged across different iterations, determined by variables
+# iteration, max_iteration and step.
+
 import numpy as np
 import math
 import pickle
@@ -9,7 +12,7 @@ np.seterr(divide='ignore')
 segLens = [40, 80, 120, 160, 200, 240]
 alphas = [5.]
 gammas = [10.]
-params = [[1, 1], [10., 10.], [100, 100], [1000, 1000]]
+params = [[10., 10.], [100, 100], [1000, 1000]]
 idx = np.load('idx_ctu.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
