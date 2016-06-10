@@ -8,8 +8,6 @@ np.seterr(divide='ignore')
 
 # selecting model and feature parameters: segment length, alpha, gamma
 segLens = [120, 160, 200]
-alphas = [5.]
-gammas = [10.]
 params = [[100, 100]]
 idx = np.load('idx_ctu.npy')
 pH = np.load('pH.npy')
@@ -22,9 +20,9 @@ label = pH < threshold                  # 1 for unhealthy, 0 for healthy
 for segLen in segLens:
     feats = np.load('./features/feats_time_freq_%d.npy' % segLen)
     print 'segment length is ', segLen, 'samples'
-    data = feats[idx, :, :]                 # use certain recordings according to idx
-    for i in xrange(data.shape[2]):
-        data = data[:, :, i:i+1]                  # each iteration only uses one feature
+    meta_data = feats[idx, :, :]                 # use certain recordings according to idx
+    for i in xrange(meta_data.shape[2]):
+        data = meta_data[:, :, i:i+1]                  # each iteration only uses one feature
         unhealthy_data = data[unhealthy]
         healthy_data = data[healthy]
 
@@ -38,8 +36,8 @@ for segLen in segLens:
             if not os.path.isdir(directory):
                 os.makedirs(directory)
             # train two HDPGMM models
-            iteration = 20
-            max_iteration = 100
+            iteration = 50
+            max_iteration = 150
             step = 10
             hdpgmm_un = GibbsSampler(snapshot_interval=10, compute_loglik=False)
             hdpgmm_hl = GibbsSampler(snapshot_interval=10, compute_loglik=False)
