@@ -251,8 +251,8 @@ class GibbsSampler(object):
                             table_probability_log[t] = np.log(0.)
                     # compute the prob of current word sitting on a new table, the prior probability is self._alpha
                     # sample new w_alpha and s_alpha
-                    self._w_alpha = np.array([np.random.beta(self._alpha, np.sum(self._n_dt[j, :])) for j in xrange(self._D)])
-                    self._s_alpha = np.array([np.random.binomial(1, np.sum(self._n_dt[j, :])) for j in xrange(self._D)])
+                    self._w_alpha = np.array([np.random.beta(self._alpha, np.sum(self._n_dt[j])) for j in xrange(self._D)])
+                    self._s_alpha = np.array([np.random.binomial(1, self._alpha/(np.sum(self._n_dt[j])+self._alpha)) for j in xrange(self._D)])
                     # sample alpha from the gamma distribution
                     self._alpha = np.random.gamma(self._a+np.sum(self._m_k)-np.sum(self._s_alpha),
                                                   self._b-np.sum(np.log(self._w_alpha)))
@@ -288,7 +288,7 @@ class GibbsSampler(object):
                         # topic_probability[self._K] = self._gamma * f_new_topic
                         # first sample gamma from a gamma distribution
                         self._w_gamma = np.random.beta(self._gamma, np.sum(self._m_k))
-                        self._s_gamma = np.random.binomial(1, np.sum(self._m_k)/self._gamma)
+                        self._s_gamma = np.random.binomial(1, self._gamma/(np.sum(self._m_k)+self._gamma))
                         self._gamma = np.random.gamma(self._a+self._K-self._s_gamma, self._b-np.log(self._w_gamma))
                         topic_probability_log[self._K] = np.log(self._gamma) + np.log(f_new_topic)
 
@@ -338,7 +338,7 @@ class GibbsSampler(object):
                             topic_probability[self._K] += base_distribution.logpdf(x)
                         # sample gamma from a gamma distribution
                         self._w_gamma = np.random.beta(self._gamma, np.sum(self._m_k))
-                        self._s_gamma = np.random.binomial(1, np.sum(self._m_k)/self._gamma)
+                        self._s_gamma = np.random.binomial(1, self._gamma/(np.sum(self._m_k)+self._gamma))
                         self._gamma = np.random.gamma(self._a+self._K-self._s_gamma, self._b-np.log(self._w_gamma))
                         topic_probability[self._K] += np.log(self._gamma)
 

@@ -31,7 +31,7 @@ for segLen in segLens:
     if not os.path.isdir(directory):
         os.makedirs(directory)
     # train two HDPGMM models
-    iteration = 20
+    iteration = 30
     max_iteration = 100
     step = 10
     hdpgmm_un = GibbsSampler(snapshot_interval=5, compute_loglik=False)
