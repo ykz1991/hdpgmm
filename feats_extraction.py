@@ -99,7 +99,7 @@ pickle.dump(bline, open('bline.npy', 'wb'))
 '''
 fs = 4                  # 4Hz sampling rate
 duration = 30*60*fs     # analyze the last 30-min data
-segLen = 240            # 40 samples/10 seconds per segment
+segLen = 140            # 40 samples/10 seconds per segment
 numSeg = duration/segLen
 fhr = pickle.load(open('fhr.npy', 'rb'))
 bline = pickle.load(open('bline.npy', 'rb'))

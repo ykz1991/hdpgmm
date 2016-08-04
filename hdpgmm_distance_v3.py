@@ -8,7 +8,7 @@ import os
 from hdpgmm_class_v2 import Gaussian, GibbsSampler
 
 # selecting model and feature parameters: segment length, alpha, gamma
-segLens = [40, 80, 120, 160, 200, 240]
+segLens = [60, 100, 140, 180, 220]
 idx = np.load('idx_ctu.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
@@ -31,8 +31,8 @@ for segLen in segLens:
     if not os.path.isdir(directory):
         os.makedirs(directory)
     # train two HDPGMM models
-    iteration = 30
-    max_iteration = 100
+    iteration = 50
+    max_iteration = 150
     step = 10
     hdpgmm_un = GibbsSampler(snapshot_interval=5, compute_loglik=False)
     hdpgmm_hl = GibbsSampler(snapshot_interval=5, compute_loglik=False)

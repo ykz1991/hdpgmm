@@ -40,7 +40,7 @@ for segLen in segLens:
             os.makedirs(directory)
         # train two HDPGMM models
         iteration = 20
-        max_iteration = 100
+        max_iteration = 150
         step = 10
         hdpgmm_un = GibbsSampler(snapshot_interval=5, compute_loglik=False)
         hdpgmm_hl = GibbsSampler(snapshot_interval=5, compute_loglik=False)
