@@ -207,6 +207,7 @@ class GibbsSampler(object):
     def sample(self, iteration):
         # sample the total data
         iter = 0
+        max_iter_alpha = 20
         # store log-likelihood for each iteration
         self.log_likelihoods = np.zeros(iteration)
         while iter < iteration:
@@ -251,11 +252,12 @@ class GibbsSampler(object):
                             table_probability_log[t] = np.log(0.)
                     # compute the prob of current word sitting on a new table, the prior probability is self._alpha
                     # sample new w_alpha and s_alpha
-                    self._w_alpha = np.array([np.random.beta(self._alpha, np.sum(self._n_dt[j])) for j in xrange(self._D)])
-                    self._s_alpha = np.array([np.random.binomial(1, self._alpha/(np.sum(self._n_dt[j])+self._alpha)) for j in xrange(self._D)])
-                    # sample alpha from the gamma distribution
-                    self._alpha = np.random.gamma(self._a+np.sum(self._m_k)-np.sum(self._s_alpha),
-                                                  self._b-np.sum(np.log(self._w_alpha)))
+                    for iter_alpha in xrange(max_iter_alpha):
+                        self._w_alpha = np.array([np.random.beta(self._alpha, np.sum(self._n_dt[j])) for j in xrange(self._D)])
+                        self._s_alpha = np.array([np.random.binomial(1, np.sum(self._n_dt[j])/(np.sum(self._n_dt[j])+self._alpha)) for j in xrange(self._D)])
+                        # sample alpha from the gamma distribution
+                        self._alpha = np.random.gamma(self._a+np.sum(self._m_k)-np.sum(self._s_alpha),
+                                                      self._b-np.sum(np.log(self._w_alpha)))
                     # table_probability[len(self._k_dt[document_index])] = self._alpha * f_new_table
                     table_probability_log[len(self._k_dt[document_index])] = np.log(self._alpha) + np.log(f_new_table)
 
@@ -288,7 +290,8 @@ class GibbsSampler(object):
                         # topic_probability[self._K] = self._gamma * f_new_topic
                         # first sample gamma from a gamma distribution
                         self._w_gamma = np.random.beta(self._gamma, np.sum(self._m_k))
-                        self._s_gamma = np.random.binomial(1, self._gamma/(np.sum(self._m_k)+self._gamma))
+                        pi = self._a + self._K - 1
+                        self._s_gamma = np.random.binomial(1, pi/(pi + (self._b - np.log(self._w_gamma))*np.sum(self._m_k)))
                         self._gamma = np.random.gamma(self._a+self._K-self._s_gamma, self._b-np.log(self._w_gamma))
                         topic_probability_log[self._K] = np.log(self._gamma) + np.log(f_new_topic)
 
@@ -338,7 +341,8 @@ class GibbsSampler(object):
                             topic_probability[self._K] += base_distribution.logpdf(x)
                         # sample gamma from a gamma distribution
                         self._w_gamma = np.random.beta(self._gamma, np.sum(self._m_k))
-                        self._s_gamma = np.random.binomial(1, self._gamma/(np.sum(self._m_k)+self._gamma))
+                        pi = self._a + self._K - 1
+                        self._s_gamma = np.random.binomial(1, pi / (pi + (self._b - np.log(self._w_gamma)) * np.sum(self._m_k)))
                         self._gamma = np.random.gamma(self._a+self._K-self._s_gamma, self._b-np.log(self._w_gamma))
                         topic_probability[self._K] += np.log(self._gamma)
 
@@ -409,10 +413,13 @@ class GibbsSampler(object):
             self.compact_params()
             if self._flag_compute_loglik:
                 self.log_likelihoods[iter-1] = self.get_logpdf()
+                if iter >= 2:
+                    if self.log_likelihoods[iter-1] < self.log_likelihoods[iter-2]:
+                        print "warning: log-likelihood is decreasing..."
             if iter > 0 and iter % self._snapshot_interval == 0:
                 print "sampling in progress %2d%%" % (100 * iter / iteration)
                 print "total number of topics %i " % self._K
-                # print 'model log-likelihood is ', self.log_likelihoods[iter-1]
+                print 'model log-likelihood is ', self.log_likelihoods[iter-1]
 
     """
     @param document_index: the document index to update

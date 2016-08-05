@@ -13,7 +13,7 @@ def mix_multivariate_normal(weights, dists, n):
     return corpus
 
 
-segLens = [40, 80, 120, 160, 200, 240]
+segLens = [100]
 params = [[100, 100]]
 for segLen in segLens:
     for param in params:
@@ -21,7 +21,7 @@ for segLen in segLens:
         gamma = param[1]
         # directory = './results/2_model/feature_selection/feature_%i/time_freq_%ds_feats_alpha_%d_gamma_%d/'\
         #             % (i, segLen/4, alpha, gamma)
-        directory = './results/2_model/no_CV_average_hyper_param/time_freq_%ds_feats/' % (segLen/4)
+        directory = './results/2_model/no_CV_average_hyper_param/time_freq_%ds_feats_2nd_run/' % (segLen/4)
         num = 100000
         iter_start = 110
         iter_max = 150
