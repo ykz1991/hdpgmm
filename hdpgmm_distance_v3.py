@@ -8,7 +8,7 @@ import os
 from hdpgmm_class_v2 import Gaussian, GibbsSampler
 
 # selecting model and feature parameters: segment length, alpha, gamma
-segLens = [100, 220]
+segLens = [80, 120]
 idx = np.load('idx_ctu.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
@@ -26,16 +26,16 @@ for segLen in segLens:
     unhealthy_data = data[unhealthy]
     healthy_data = data[healthy]
 
-    folder = 'time_freq_%ds_feats_2nd_run' % (segLen/4)
+    folder = 'time_freq_%ds_feats_3rd_run' % (segLen/4)
     directory = './results/2_model/no_CV_average_hyper_param/%s/' % folder
     if not os.path.isdir(directory):
         os.makedirs(directory)
     # train two HDPGMM models
     iteration = 50
-    max_iteration = 150
+    max_iteration = 100
     step = 10
-    hdpgmm_un = GibbsSampler(snapshot_interval=20, compute_loglik=True)
-    hdpgmm_hl = GibbsSampler(snapshot_interval=20, compute_loglik=True)
+    hdpgmm_un = GibbsSampler(snapshot_interval=20, compute_loglik=False)
+    hdpgmm_hl = GibbsSampler(snapshot_interval=20, compute_loglik=False)
 
     hdpgmm_un._initialize(unhealthy_data)
     hdpgmm_hl._initialize(healthy_data)

@@ -386,10 +386,13 @@ class GibbsSampler(object):
             self.compact_params()
             if self._flag_compute_loglik:
                 self.log_likelihoods[iter-1] = self.get_logpdf()
+                if iter >= 2:
+                    if self.log_likelihoods[iter-1] < self.log_likelihoods[iter-2]:
+                        print "warning: log-likelihood is decreasing..."
             if iter > 0 and iter % self._snapshot_interval == 0:
                 print "sampling in progress %2d%%" % (100 * iter / iteration)
                 print "total number of topics %i " % self._K
-                # print 'model log-likelihood is ', self.log_likelihoods[iter-1]
+                print 'model log-likelihood is ', self.log_likelihoods[iter-1]
 
     """
     @param document_index: the document index to update

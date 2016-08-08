@@ -13,7 +13,7 @@ def mix_multivariate_normal(weights, dists, n):
     return corpus
 
 
-segLens = [100]
+segLens = [240]
 params = [[100, 100]]
 for segLen in segLens:
     for param in params:
@@ -21,8 +21,9 @@ for segLen in segLens:
         gamma = param[1]
         # directory = './results/2_model/feature_selection/feature_%i/time_freq_%ds_feats_alpha_%d_gamma_%d/'\
         #             % (i, segLen/4, alpha, gamma)
-        directory = './results/2_model/no_CV_average_hyper_param/time_freq_%ds_feats_2nd_run/' % (segLen/4)
-        num = 100000
+        directory = './results/2_model/no_CV_average_hyper_param/time_freq_%ds_feats_3rd_run/' % (segLen/4)
+        directory2 = './results/2_model/no_CV_average_hyper_param/time_freq_%ds_feats_2nd_run/' % (segLen / 4)
+        num = 50000
         iter_start = 110
         iter_max = 150
         step_size = 10
@@ -30,6 +31,7 @@ for segLen in segLens:
         tpr = np.array([])
         for iter in xrange(iter_start, iter_max, step_size):
             hdpgmm_un = pickle.load(open(directory + 'hdpgmm_un_%d-th_iter' % iter))
+            hdpgmm_un2 = pickle.load(open(directory2 + 'hdpgmm_un_%d-th_iter' % iter))
             hdpgmm_hl = pickle.load(open(directory + 'hdpgmm_hl_%d-th_iter' % iter))
             '''
             # plot log-likelihood against number of iterations

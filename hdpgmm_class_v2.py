@@ -3,6 +3,7 @@
 import numpy as np
 import math
 import pickle
+import scipy.special as ssp
 from model_loglikelihood import dict2mix, mixture_logpdf, all_loglike
 np.seterr(divide='ignore')
 
@@ -154,15 +155,14 @@ class GibbsSampler(object):
         self._K = self._D
 
         # initialize the parameters of gamma prior of alpha
-        self._a = 1.
-        self._b = 1.
-        self._w_alpha = np.random.random(self._D)
-        self._s_alpha = np.random.binomial(1, .5, self._D)
-        self._w_gamma = np.random.random()
-        self._s_gamma = np.random.binomial(1, .5)
+        self._alpha_a = 200.
+        self._alpha_b = 1.
 
-        self._alpha = np.random.gamma(self._a, self._b)
-        self._gamma = np.random.gamma(self._a, self._b)
+        self._gamma_a = 20.
+        self._gamma_b = 1.
+
+        self._alpha = np.random.gamma(self._alpha_a, self._alpha_b)
+        self._gamma = np.random.gamma(self._gamma_a, self._gamma_b)
 
         # initialize the word count matrix indexed by topic id and word id, i.e., n_{\cdot \cdot k}^v
         # self._n_kv = np.zeros((self._K, self._V))
@@ -208,10 +208,31 @@ class GibbsSampler(object):
         # sample the total data
         iter = 0
         max_iter_alpha = 20
+        max_iter_gamma = 10
         # store log-likelihood for each iteration
         self.log_likelihoods = np.zeros(iteration)
         while iter < iteration:
             iter += 1
+            # sample new w_alpha and s_alpha
+            for iter_alpha in xrange(max_iter_alpha):
+                self._w_alpha = np.array([np.random.beta(self._alpha+1, np.sum(self._n_dt[j])) for j in xrange(self._D)])
+                self._s_alpha = np.array(
+                    [np.random.binomial(1, np.sum(self._n_dt[j]) / (np.sum(self._n_dt[j]) + self._alpha)) for j in
+                     xrange(self._D)])
+                # sample alpha from the gamma distribution
+                rate = 1./self._alpha_b - np.sum(np.log(self._w_alpha))
+                self._alpha = np.random.gamma(self._alpha_a + np.sum(self._m_k) - np.sum(self._s_alpha), 1./rate)
+                # print "alpha is ", self._alpha
+            # sample gamma from a gamma distribution
+            for iter_gamma in xrange(max_iter_gamma):
+                self._w_gamma = np.random.beta(self._gamma+1, np.sum(self._m_k))
+                pi = self._gamma_a + self._K - 1
+                self._s_gamma = np.random.binomial(1, (self._gamma_b - np.log(self._w_gamma)) * np.sum(self._m_k) / (
+                pi + (self._gamma_b - np.log(self._w_gamma)) * np.sum(self._m_k)))
+                rate = 1./self._gamma_b - np.log(self._w_gamma)
+                self._gamma = np.random.gamma(self._gamma_a + self._K - self._s_gamma, 1./rate)
+                # print "gamma is ", self._gamma
+
             for document_index in np.random.permutation(xrange(self._D)):
                 # sample customer assignment, see which table it should belong to
                 for word_index in np.random.permutation(xrange(len(self._corpus[document_index]))):
@@ -251,13 +272,6 @@ class GibbsSampler(object):
                             # table_probability[t] = 0.
                             table_probability_log[t] = np.log(0.)
                     # compute the prob of current word sitting on a new table, the prior probability is self._alpha
-                    # sample new w_alpha and s_alpha
-                    for iter_alpha in xrange(max_iter_alpha):
-                        self._w_alpha = np.array([np.random.beta(self._alpha, np.sum(self._n_dt[j])) for j in xrange(self._D)])
-                        self._s_alpha = np.array([np.random.binomial(1, np.sum(self._n_dt[j])/(np.sum(self._n_dt[j])+self._alpha)) for j in xrange(self._D)])
-                        # sample alpha from the gamma distribution
-                        self._alpha = np.random.gamma(self._a+np.sum(self._m_k)-np.sum(self._s_alpha),
-                                                      self._b-np.sum(np.log(self._w_alpha)))
                     # table_probability[len(self._k_dt[document_index])] = self._alpha * f_new_table
                     table_probability_log[len(self._k_dt[document_index])] = np.log(self._alpha) + np.log(f_new_table)
 
@@ -288,11 +302,6 @@ class GibbsSampler(object):
                             # topic_probability[k] = self._m_k[k] * f[k]
                             topic_probability_log[k] = np.log(self._m_k[k]) + flog[k]
                         # topic_probability[self._K] = self._gamma * f_new_topic
-                        # first sample gamma from a gamma distribution
-                        self._w_gamma = np.random.beta(self._gamma, np.sum(self._m_k))
-                        pi = self._a + self._K - 1
-                        self._s_gamma = np.random.binomial(1, pi/(pi + (self._b - np.log(self._w_gamma))*np.sum(self._m_k)))
-                        self._gamma = np.random.gamma(self._a+self._K-self._s_gamma, self._b-np.log(self._w_gamma))
                         topic_probability_log[self._K] = np.log(self._gamma) + np.log(f_new_topic)
 
                         # sample a new topic this table should be assigned
@@ -339,11 +348,6 @@ class GibbsSampler(object):
                         for x in selected_word:
                             base_distribution = Gaussian(X=np.zeros((0, len(x))))
                             topic_probability[self._K] += base_distribution.logpdf(x)
-                        # sample gamma from a gamma distribution
-                        self._w_gamma = np.random.beta(self._gamma, np.sum(self._m_k))
-                        pi = self._a + self._K - 1
-                        self._s_gamma = np.random.binomial(1, pi / (pi + (self._b - np.log(self._w_gamma)) * np.sum(self._m_k)))
-                        self._gamma = np.random.gamma(self._a+self._K-self._s_gamma, self._b-np.log(self._w_gamma))
                         topic_probability[self._K] += np.log(self._gamma)
 
                         # compute the likelihood of each existing topic
@@ -412,14 +416,18 @@ class GibbsSampler(object):
             # compact all the parameters, including removing unused topics and unused tables
             self.compact_params()
             if self._flag_compute_loglik:
+                print "gamma is %d, alpha is %d" % (self._gamma, self._alpha)
                 self.log_likelihoods[iter-1] = self.get_logpdf()
+                '''
                 if iter >= 2:
                     if self.log_likelihoods[iter-1] < self.log_likelihoods[iter-2]:
                         print "warning: log-likelihood is decreasing..."
+                '''
             if iter > 0 and iter % self._snapshot_interval == 0:
                 print "sampling in progress %2d%%" % (100 * iter / iteration)
                 print "total number of topics %i " % self._K
-                print 'model log-likelihood is ', self.log_likelihoods[iter-1]
+                if self._flag_compute_loglik:
+                    print 'model log-likelihood is ', self.log_likelihoods[iter-1]
 
     """
     @param document_index: the document index to update
@@ -503,6 +511,9 @@ class GibbsSampler(object):
         tmp = 0.
         for X in data:
             tmp += all_loglike(X, weights, dists)
+        # add likelihood of alpha and gamma
+        tmp += (self._alpha_a - 1)*np.log(self._alpha) - self._alpha/self._alpha_b - self._alpha_a*np.log(self._alpha_b) - ssp.gammaln(self._alpha_a)
+        tmp += (self._gamma_a - 1)*np.log(self._gamma) - self._gamma/self._gamma_b - self._gamma_a*np.log(self._gamma_b) - ssp.gammaln(self._gamma_a)
         return tmp
 
     def pickle(self, path, filename):
