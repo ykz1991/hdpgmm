@@ -416,7 +416,7 @@ class GibbsSampler(object):
             # compact all the parameters, including removing unused topics and unused tables
             self.compact_params()
             if self._flag_compute_loglik:
-                print "gamma is %d, alpha is %d" % (self._gamma, self._alpha)
+                # print "gamma is %d, alpha is %d" % (self._gamma, self._alpha)
                 self.log_likelihoods[iter-1] = self.get_logpdf()
                 '''
                 if iter >= 2:
@@ -427,6 +427,8 @@ class GibbsSampler(object):
                 print "sampling in progress %2d%%" % (100 * iter / iteration)
                 print "total number of topics %i " % self._K
                 if self._flag_compute_loglik:
+                    print "gamma is %d, alpha is %d" % (self._gamma, self._alpha)
+                    self.log_likelihoods[iter - 1] = self.get_logpdf()
                     print 'model log-likelihood is ', self.log_likelihoods[iter-1]
 
     """

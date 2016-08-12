@@ -1,7 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pickle
-from model_loglikelihood import dict2mix, mixture_logpdf, all_loglike
+from model_loglikelihood import dict2mix, mixture_logpdf
 
 
 def mix_multivariate_normal(weights, dists, n):
@@ -13,25 +12,18 @@ def mix_multivariate_normal(weights, dists, n):
     return corpus
 
 
-segLens = [240]
-params = [[100, 100]]
+segLens = [60]
 for segLen in segLens:
-    for param in params:
-        alpha = param[0]
-        gamma = param[1]
-        # directory = './results/2_model/feature_selection/feature_%i/time_freq_%ds_feats_alpha_%d_gamma_%d/'\
-        #             % (i, segLen/4, alpha, gamma)
-        directory = './results/2_model/no_CV_average_hyper_param/time_freq_%ds_feats_3rd_run/' % (segLen/4)
-        directory2 = './results/2_model/no_CV_average_hyper_param/time_freq_%ds_feats_2nd_run/' % (segLen / 4)
-        num = 50000
-        iter_start = 110
-        iter_max = 150
+    for run in xrange(1):
+        directory = './results/2_model/no_CV_average_hyper_param_pca/time_freq_%ds_feats_%dth_run/' % (segLen/4, (run+4))
+        num = 100000
+        iter_start = 50
+        iter_max = 110
         step_size = 10
         tnr = np.array([])
         tpr = np.array([])
         for iter in xrange(iter_start, iter_max, step_size):
             hdpgmm_un = pickle.load(open(directory + 'hdpgmm_un_%d-th_iter' % iter))
-            hdpgmm_un2 = pickle.load(open(directory2 + 'hdpgmm_un_%d-th_iter' % iter))
             hdpgmm_hl = pickle.load(open(directory + 'hdpgmm_hl_%d-th_iter' % iter))
             '''
             # plot log-likelihood against number of iterations
@@ -57,8 +49,6 @@ for segLen in segLens:
             corpus_un = mix_multivariate_normal(weights_un, dists_un, num)
             corpus = np.concatenate((corpus_hl, corpus_un), axis=0)
             '''
-            print 'segment length is ', segLen
-            print 'alpha is %d, gamma is %d ' % (alpha, gamma)
             print 'number of clusters in healthy mixture is ', len(weights_hl)
             print 'number of clusters in unhealthy mixture is ', len(weights_un)
             '''
@@ -70,8 +60,9 @@ for segLen in segLens:
             tpr = np.append(tpr, 1.*np.sum(pred.astype(bool) & y.astype(bool))/np.sum(y))
             tnr = np.append(tnr, 1.*np.sum(~pred.astype(bool) & ~y.astype(bool))/(len(y) - np.sum(y)))
 
-        # print 'segment length is %ds, alpha is %d, gamma is %d' % (segLen/4, alpha, gamma)
-        print 'segment length is %ds' % (segLen/4)
+        print 'in the %dth run, segment length is %ds' % ((run+4), segLen/4)
+        print 'all tpr are ', tpr
+        print 'all tnr are ', tnr
         print 'true positive rate is ', np.mean(tpr), 'std is ', np.std(tpr)
         print 'true negative rate is ', np.mean(tnr), 'std is ', np.std(tnr)
         print 'wra is ', np.mean(tpr)+np.mean(tnr)-1

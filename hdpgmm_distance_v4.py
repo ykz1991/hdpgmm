@@ -1,41 +1,29 @@
 # In this version, the Gibbs sampling results are averaged across different iterations, determined by variables
 # iteration, max_iteration and step.
-# What's new: gamma priors are given to the concentration parameters
+# What's new: use data after PCA (dim=2 or 3)
 
 import numpy as np
 import os
 from hdpgmm_class_v2 import GibbsSampler
 
-# selecting model and feature parameters: segment length, alpha, gamma
+# selecting model and feature parameters: segment length
 for run in xrange(1):
     segLens = [180, 200, 220, 240]
-    idx = np.load('idx_ctu.npy')
-    pH = np.load('pH.npy')
-    pH = pH[idx]
-    threshold = 7.15
-    unhealthy = np.where(pH < threshold)[0]
-    healthy = np.where(pH >= threshold)[0]
-    label = pH < threshold                  # 1 for unhealthy, 0 for healthy
 
     for segLen in segLens:
-        feats = np.load('./features/feats_time_freq_%d.npy' % segLen)
-        print 'segment length is ', segLen, 'samples'
-        data = feats[idx, :, :]                 # use certain recordings according to idx
-        # data = data[:, :, [0, 1, 2, 3, 6, 7]]   # ARX coefficients, std, mean of rr interval
-        # data = data[:, :, [0, 3, 5, 6, 7, 8]]   # mean, sti, lti, poincare
-        unhealthy_data = data[unhealthy]
-        healthy_data = data[healthy]
+        unhealthy_data = np.load('./pca_data/2dim/unhealthy_data_pca_%ds.npy' % (segLen/4))
+        healthy_data = np.load('./pca_data/2dim/healthy_data_pca_%ds.npy' % (segLen/4))
 
         folder = 'time_freq_%ds_feats_%dth_run' % (segLen/4, (run+4))
-        directory = './results/2_model/no_CV_average_hyper_param/%s/' % folder
+        directory = './results/2_model/no_CV_average_hyper_param_pca/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
         # train two HDPGMM models
         iteration = 50
         max_iteration = 100
         step = 10
-        hdpgmm_un = GibbsSampler(snapshot_interval=20, compute_loglik=False)
-        hdpgmm_hl = GibbsSampler(snapshot_interval=20, compute_loglik=False)
+        hdpgmm_un = GibbsSampler(snapshot_interval=20, compute_loglik=True)
+        hdpgmm_hl = GibbsSampler(snapshot_interval=20, compute_loglik=True)
 
         hdpgmm_un._initialize(unhealthy_data)
         hdpgmm_hl._initialize(healthy_data)
