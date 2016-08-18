@@ -8,7 +8,7 @@ from hdpgmm_class_v2 import GibbsSampler
 
 # selecting model and feature parameters: segment length
 for run in xrange(1):
-    segLens = [180, 200, 220, 240]
+    segLens = [200, 220, 240]
 
     for segLen in segLens:
         unhealthy_data = np.load('./pca_data/2dim/unhealthy_data_pca_%ds.npy' % (segLen/4))
@@ -22,8 +22,8 @@ for run in xrange(1):
         iteration = 50
         max_iteration = 100
         step = 10
-        hdpgmm_un = GibbsSampler(snapshot_interval=20, compute_loglik=True)
-        hdpgmm_hl = GibbsSampler(snapshot_interval=20, compute_loglik=True)
+        hdpgmm_un = GibbsSampler(snapshot_interval=10, compute_loglik=False)
+        hdpgmm_hl = GibbsSampler(snapshot_interval=10, compute_loglik=False)
 
         hdpgmm_un._initialize(unhealthy_data)
         hdpgmm_hl._initialize(healthy_data)

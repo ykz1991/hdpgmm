@@ -155,10 +155,10 @@ class GibbsSampler(object):
         self._K = self._D
 
         # initialize the parameters of gamma prior of alpha
-        self._alpha_a = 200.
+        self._alpha_a = 10.
         self._alpha_b = 1.
 
-        self._gamma_a = 20.
+        self._gamma_a = 1.
         self._gamma_b = 1.
 
         self._alpha = np.random.gamma(self._alpha_a, self._alpha_b)

@@ -7,16 +7,20 @@ from scipy import signal
 # two types: 1) standard STV = 1/N*|s(N)-s(1)|
 #            2) STV-HAA = IQR(arctan(s(i+1)/s(i))), i=1,...,N
 def stv(s, type):
-    M = np.int_(np.ceil(len(s)/60.))  # compute the number of minutes
+    M = np.int(np.ceil(len(s)/60.))  # compute the number of minutes
+    # first smooth FHR to get epoch-to-epoch variation, where each epoch contains 10 samples
+    n_epoch = np.int(np.ceil(len(s)/10.))
+    ee = np.array([np.mean(s[10*n:min(10*(n+1), len(s)-1)]) for n in xrange(n_epoch)])
+
     if type == 1:
         res = 0.
         for m in xrange(M):
-            res += np.mean(np.abs(s[60*m+1:min(60*(m+1)+1, len(s))] - s[60*m:min(60*(m+1), len(s)-1)]))
+            res += np.mean(np.abs(ee[6*m+1:min(6*(m+1)+1, len(ee))] - ee[6*m:min(6*(m+1), len(ee)-1)]))
         return res/M
     elif type == 2:
         res = 0.
         for m in xrange(M):
-            q75, q25 = np.percentile(np.arctan(s[m*60+1:min((m+1)*60, len(s))]/s[m*60:min((m+1)*60, len(s))-1]), [75, 25])
+            q75, q25 = np.percentile(np.arctan(ee[m*6+1:min((m+1)*6, len(ee))]/ee[m*6:min((m+1)*6, len(ee))-1]), [75, 25])
             res += (q75-q25)
         return res/M
 
@@ -99,30 +103,31 @@ pickle.dump(bline, open('bline.npy', 'wb'))
 '''
 fs = 4                  # 4Hz sampling rate
 duration = 30*60*fs     # analyze the last 30-min data
-segLen = 140            # 40 samples/10 seconds per segment
-numSeg = duration/segLen
-fhr = pickle.load(open('fhr.npy', 'rb'))
-bline = pickle.load(open('bline.npy', 'rb'))
-feat_vector = np.empty([len(fhr), numSeg, 14])
-for idx in fhr:
-    y = fhr[idx][-duration:]                # analyze the last segment of data
-    y_debline = y - bline[idx][-duration:]  # get fhr after removing baseline
-    t = np.reciprocal(y/60.)                # get RR interval
-    for t in xrange(numSeg):
-        s = y[segLen*t:segLen*(t+1)]
-        s_debline = y_debline[segLen*t:segLen*(t+1)]
-        mean = np.mean(s)
-        var = np.var(s)
-        stv_std = stv(s, 1)
-        stv_haa = stv(s, 2)
-        ltv_delta = ltv(s, 1)
-        ltv_lti = ltv(s, 2)
-        sd1, sd2, ccm1 = poincare(s, 1)
-        power_vlf, power_lf, power_mf, power_hf, ratio = bandpower(s)
-        feat_vector[idx, t] = [mean, var, stv_std, stv_haa, ltv_delta, ltv_lti, sd1, sd2, ccm1,
-                               power_vlf, power_lf, power_mf, power_hf, ratio]
-    print '%d-th recording, ...... extraction complete' % idx
-np.save('./features/feats_time_freq_%d' % segLen, feat_vector)
+segLens = [duration]            # 40 samples/10 seconds per segment
+for segLen in segLens:
+    numSeg = duration/segLen
+    fhr = pickle.load(open('fhr.npy', 'rb'))
+    bline = pickle.load(open('bline.npy', 'rb'))
+    feat_vector = np.empty([len(fhr), numSeg, 14])
+    for idx in fhr:
+        y = fhr[idx][-duration:]                # analyze the last segment of data
+        y_debline = y - bline[idx][-duration:]  # get fhr after removing baseline
+        rr = np.reciprocal(y/60.)                # get RR interval
+        for t in xrange(numSeg):
+            s = y[segLen*t:segLen*(t+1)]
+            s_debline = y_debline[segLen*t:segLen*(t+1)]
+            mean = np.mean(s)
+            var = np.var(s)
+            stv_std = stv(s, 1)
+            stv_haa = stv(s, 2)
+            ltv_delta = ltv(s, 1)
+            ltv_lti = ltv(s, 2)
+            sd1, sd2, ccm1 = poincare(s, 1)
+            power_vlf, power_lf, power_mf, power_hf, ratio = bandpower(s)
+            feat_vector[idx, t] = [mean, var, stv_std, stv_haa, ltv_delta, ltv_lti, sd1, sd2, ccm1,
+                                   power_vlf, power_lf, power_mf, power_hf, ratio]
+        print '%d-th recording, ... extraction complete' % idx
+    np.save('./features/feats_time_freq_%d' % segLen, feat_vector)
 
 
 '''

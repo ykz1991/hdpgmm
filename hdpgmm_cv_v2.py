@@ -1,34 +1,42 @@
 import numpy as np
-import math
 import pickle
 import matplotlib.pyplot as plt
 import os
 from sklearn.cross_validation import StratifiedKFold
-from model_loglikelihood import dict2mix, mixture_logpdf, all_loglike
+from model_loglikelihood import dict2mix, all_loglike
 from hdpgmm_class_v2 import GibbsSampler
+from sklearn.decomposition import PCA
+
 np.seterr(divide='ignore')
 
 # selecting model parameters: segment length
-segLens = [100, 220]
+segLens = [40, 80]
 idx = np.load('idx_ctu.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
-threshold = 7.15
-unhealthy = np.where(pH < threshold)[0]
-healthy = np.where(pH >= threshold)[0]
-label = pH < threshold                  # 1 for unhealthy, 0 for healthy
+threshold = 7.05
+unhealthy = np.where(pH <= threshold)[0]
+healthy = np.where(pH > threshold)[0]
+label = pH <= threshold                  # 1 for unhealthy, 0 for healthy
 skf = StratifiedKFold(label, 10)
+q = 2       # dimension after PCA
+
 for segLen in segLens:
     feats = np.load('./features/feats_time_freq_%d.npy' % segLen)
     print 'segment length is ', segLen, 'samples'
     data = feats[idx, :, :]                 # use certain recordings according to idx
-    # data = data[:, :, [0, 1, 2, 3, 6, 7]]   # ARX coefficients, std, mean of rr interval
-    # data = data[:, :, [0, 3, 5, 6, 7, 8]]   # mean, sti, lti, poincare
-    unhealthy_data = data[unhealthy]
-    healthy_data = data[healthy]
+
+    pca = PCA(n_components=q)
+    shape = data.shape
+    data_reshape = np.reshape(data, (shape[0] * shape[1], shape[2]))
+    data_pca_reshape = pca.fit_transform(data_reshape)
+    data_pca = np.reshape(data_pca_reshape, (shape[0], shape[1], q))
+
+    unhealthy_data = data_pca[unhealthy]
+    healthy_data = data_pca[healthy]
 
     folder = 'time_freq_%ds' % (segLen/4)
-    directory = './results/2_model/CV_hyper_param/%s/' % folder
+    directory = './results/2_model/CV_hyper_param_pca_dim%d/%s/' % (q, folder)
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
@@ -37,15 +45,15 @@ for segLen in segLens:
     tmp_tpr = np.zeros(len(skf))
     run = 0
     CV_idx = {}
-    iter_start = 100
-    iter_stop = 150
+    iter_start = 50
+    iter_stop = 100
     iter_step = 10
     step = (iter_stop - iter_start) / iter_step
     for train, test in skf:
         # train two HDPGMM models
         # initialization
-        hdpgmm_un = GibbsSampler(snapshot_interval=20)
-        hdpgmm_hl = GibbsSampler(snapshot_interval=20)
+        hdpgmm_un = GibbsSampler(snapshot_interval=10)
+        hdpgmm_hl = GibbsSampler(snapshot_interval=10)
         hdpgmm_un._initialize(data[train[pH[train] < threshold]])
         hdpgmm_hl._initialize(data[train[pH[train] >= threshold]])
 
@@ -74,10 +82,12 @@ for segLen in segLens:
         p0 = np.sum(p0_all, axis=1)
         p1 = np.sum(p1_all, axis=1)
         pred = (p0 < p1).astype(int)
-        y = (pH[test] < threshold).astype(int)
+        y = (pH[test] <= threshold).astype(int)
         tmp_accuracy[run] = 1.*np.sum(pred == y)/len(y)
         tmp_tpr[run] = 1.*np.sum(pred.astype(bool) & y.astype(bool))/np.sum(y)
         tmp_tnr[run] = 1.*np.sum(~pred.astype(bool) & ~y.astype(bool))/(len(y) - np.sum(y))
+        print 'tnr in the %dth run is ' % (run+1), tmp_tnr[run]
+        print 'tpr in the %dth run is ' % (run + 1), tmp_tpr[run]
         CV_idx[run] = {}
         CV_idx[run]['train'] = train
         CV_idx[run]['test'] = test

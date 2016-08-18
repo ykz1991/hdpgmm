@@ -8,7 +8,7 @@ threshold = 7.15
 unhealthy = np.where(pH < threshold)[0]
 healthy = np.where(pH >= threshold)[0]
 label = pH < threshold                  # 1 for unhealthy, 0 for healthy
-q = 3
+q = 2
 
 segLens = [40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240]
 for segLen in segLens:
