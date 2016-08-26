@@ -103,7 +103,7 @@ pickle.dump(bline, open('bline.npy', 'wb'))
 '''
 fs = 4                  # 4Hz sampling rate
 duration = 30*60*fs     # analyze the last 30-min data
-segLens = [duration]            # 40 samples/10 seconds per segment
+segLens = [60, 100, 140]            # 40 samples/10 seconds per segment
 for segLen in segLens:
     numSeg = duration/segLen
     fhr = pickle.load(open('fhr.npy', 'rb'))
@@ -117,14 +117,14 @@ for segLen in segLens:
             s = y[segLen*t:segLen*(t+1)]
             s_debline = y_debline[segLen*t:segLen*(t+1)]
             mean = np.mean(s)
-            var = np.var(s)
+            std = np.std(s)
             stv_std = stv(s, 1)
             stv_haa = stv(s, 2)
             ltv_delta = ltv(s, 1)
             ltv_lti = ltv(s, 2)
             sd1, sd2, ccm1 = poincare(s, 1)
             power_vlf, power_lf, power_mf, power_hf, ratio = bandpower(s)
-            feat_vector[idx, t] = [mean, var, stv_std, stv_haa, ltv_delta, ltv_lti, sd1, sd2, ccm1,
+            feat_vector[idx, t] = [mean, std, stv_std, stv_haa, ltv_delta, ltv_lti, sd1, sd2, ccm1,
                                    power_vlf, power_lf, power_mf, power_hf, ratio]
         print '%d-th recording, ... extraction complete' % idx
     np.save('./features/feats_time_freq_%d' % segLen, feat_vector)

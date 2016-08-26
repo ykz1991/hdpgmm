@@ -12,23 +12,23 @@ np.seterr(divide='ignore')
 
 # selecting model parameters: segment length
 segLens = [120]
-idx = np.load('./index/idx_705.npy')
+idx = np.load('./index/idx_710.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
-threshold = 7.05
+threshold = 7.1
 unhealthy = np.where(pH <= threshold)[0]
 healthy = np.where(pH > threshold)[0]
 label = pH <= threshold                  # 1 for unhealthy, 0 for healthy
-skf = StratifiedKFold(label, 5, shuffle=True)
-qs = [4]                           # dimension after PCA
+skf = StratifiedKFold(label, 5)
+qs = [2, ]                           # dimension after PCA
 for q in qs:
     for segLen in segLens:
         feats = np.load('./features/feats_time_freq_%d.npy' % segLen)
         print 'segment length is ', segLen, 'samples'
         data = feats[idx, :, :]                 # use certain recordings according to idx
 
-        folder = 'time_freq_dim%d_%ds' % (q, segLen/4)
-        directory = './results/2_model/CV_hyper_param_pca_scaled/%s/' % folder
+        folder = 'time_freq_dim%d_%ds_2nd_run' % (q, segLen/4)
+        directory = './results/2_model/CV_hyper_param_pca_scaled_7.1/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
 

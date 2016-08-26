@@ -9,8 +9,8 @@ from sklearn.decomposition import PCA
 from sklearn import preprocessing
 
 # selecting model and feature parameters: segment length, alpha, gamma
-for run in xrange(1):
-    segLens = [40, 80, 120, 160, 200]
+for run in xrange(2):
+    segLens = [40, 80, 120]
     idx = np.load('./index/idx_705.npy')
     pH = np.load('pH.npy')
     pH = pH[idx]
@@ -18,30 +18,31 @@ for run in xrange(1):
     unhealthy = np.where(pH <= threshold)[0]
     healthy = np.where(pH > threshold)[0]
     label = pH <= threshold                  # 1 for unhealthy, 0 for healthy
-    q = 4
+    q = 3
 
     for segLen in segLens:
         feats = np.load('./features/feats_time_freq_%d.npy' % segLen)
         print 'segment length is', segLen, 'samples,', 'dimension is ', q
         data = feats[idx, :, :]                 # use certain recordings according to idx
 
+        scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
         pca = PCA(n_components=q)
         shape = data.shape
         data_reshape = np.reshape(data, (shape[0]*shape[1], shape[2]))
-        # data_reshape_scale = preprocessing.scale(data_reshape)
-        data_pca_reshape = pca.fit_transform(data_reshape)
+        data_reshape_scaled = scaler.fit_transform(data_reshape)
+        data_pca_reshape = pca.fit_transform(data_reshape_scaled)
         data_pca = np.reshape(data_pca_reshape, (shape[0], shape[1], q))
 
         unhealthy_data = data_pca[unhealthy]
         healthy_data = data_pca[healthy]
 
         folder = 'time_freq_dim%d_%ds_feats_%dst_run' % (q, segLen/4, (run+1))
-        directory = './results/2_model/no_CV_average_hyper_param_pca/%s/' % folder
+        directory = './results/2_model/no_CV_average_hyper_param_pca_scaled/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
         # train two HDPGMM models
-        iteration = 40
-        max_iteration = 60
+        iteration = 60
+        max_iteration = 80
         step = 10
         hdpgmm_un = GibbsSampler(snapshot_interval=10, compute_loglik=True)
         hdpgmm_hl = GibbsSampler(snapshot_interval=10, compute_loglik=True)
