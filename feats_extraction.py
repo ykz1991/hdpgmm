@@ -103,19 +103,27 @@ pickle.dump(bline, open('bline.npy', 'wb'))
 '''
 fs = 4                  # 4Hz sampling rate
 duration = 30*60*fs     # analyze the last 30-min data
-segLens = [60, 100, 140]            # 40 samples/10 seconds per segment
+segLens = [40, 80, 120, 160, 200]            # 40 samples/10 seconds per segment
+fhr = pickle.load(open('../../data/CTU-UHB/fhr.pickle', 'rb'))
+# bline = pickle.load(open('../../data/CTU-UHB/bline.pickle', 'rb'))
+feats_time_freq_whole_seg = {}
 for segLen in segLens:
-    numSeg = duration/segLen
-    fhr = pickle.load(open('fhr.npy', 'rb'))
-    bline = pickle.load(open('bline.npy', 'rb'))
-    feat_vector = np.empty([len(fhr), numSeg, 14])
+    # numSeg = duration/segLen
+    # feat_vector = np.empty([len(fhr), numSeg, 14])
+    feats_time_freq_whole_seg[segLen] = {}
     for idx in fhr:
-        y = fhr[idx][-duration:]                # analyze the last segment of data
-        y_debline = y - bline[idx][-duration:]  # get fhr after removing baseline
+        y = fhr[idx]                            # ignore the duration, use all the data
+        # y_debline = y - bline[idx]
+        # y = fhr[idx][-duration:]                # analyze the last segment of data
+        # y_debline = y - bline[idx][-duration:]  # get fhr after removing baseline
         rr = np.reciprocal(y/60.)                # get RR interval
+
+        numSeg = len(y)/segLen
+        feat_vector = np.empty([numSeg, 14])
+
         for t in xrange(numSeg):
             s = y[segLen*t:segLen*(t+1)]
-            s_debline = y_debline[segLen*t:segLen*(t+1)]
+            # s_debline = y_debline[segLen*t:segLen*(t+1)]
             mean = np.mean(s)
             std = np.std(s)
             stv_std = stv(s, 1)
@@ -124,11 +132,14 @@ for segLen in segLens:
             ltv_lti = ltv(s, 2)
             sd1, sd2, ccm1 = poincare(s, 1)
             power_vlf, power_lf, power_mf, power_hf, ratio = bandpower(s)
-            feat_vector[idx, t] = [mean, std, stv_std, stv_haa, ltv_delta, ltv_lti, sd1, sd2, ccm1,
+            feat_vector[t] = [mean, std, stv_std, stv_haa, ltv_delta, ltv_lti, sd1, sd2, ccm1,
                                    power_vlf, power_lf, power_mf, power_hf, ratio]
+        feats_time_freq_whole_seg[segLen][idx] = feat_vector
         print '%d-th recording, ... extraction complete' % idx
-    np.save('./features/feats_time_freq_%d' % segLen, feat_vector)
+    print '%d samples finished.' % segLen
 
+# np.save('./features/healhty_feats_time_freq_%d' % segLen, feat_vector)
+pickle.dump(feats_time_freq_whole_seg, open('./features/feats_time_freq_whole_seg.pickle', 'wb'))
 
 '''
 feats = np.load('feat_vector.npy')

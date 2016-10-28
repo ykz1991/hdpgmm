@@ -31,3 +31,5 @@ def all_loglike(X, weights, dists):
         tmp += mixture_logpdf(x, weights, dists)
     return tmp
 
+
+

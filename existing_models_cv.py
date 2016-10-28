@@ -5,10 +5,10 @@ from sklearn.svm import SVC
 from sklearn import cross_validation
 
 
-idx = np.load('./index/idx_705.npy')
+idx = np.load('./index/idx_710.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
-threshold = 7.05
+threshold = 7.10
 unhealthy = np.where(pH <= threshold)[0]
 healthy = np.where(pH > threshold)[0]
 label = pH <= threshold                  # 1 for unhealthy, 0 for healthy
@@ -33,7 +33,7 @@ for train, test in skf:
     min_max_scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
     X_train_scaled = min_max_scaler.fit_transform(X_train)
 
-    clf = SVC(C=3., kernel='rbf', gamma='auto')
+    clf = SVC(C=1, kernel='rbf', gamma='auto')
     clf.fit(X_train_scaled, y_train)
 
     # X_test_pca = pca.transform(X_test)

@@ -61,8 +61,8 @@ for q in qs:
             # initialization
             hdpgmm_un = GibbsSampler(snapshot_interval=10)
             hdpgmm_hl = GibbsSampler(snapshot_interval=10)
-            hdpgmm_un._initialize(data_train_pca[pH[train] <= threshold])
-            hdpgmm_hl._initialize(data_train_pca[pH[train] > threshold])
+            hdpgmm_un.initialize(data_train_pca[pH[train] <= threshold])
+            hdpgmm_hl.initialize(data_train_pca[pH[train] > threshold])
 
             hdpgmm_un.sample(iter_start)
             hdpgmm_hl.sample(iter_start)

@@ -9,7 +9,7 @@ from sklearn.decomposition import PCA
 from sklearn import preprocessing
 
 # selecting model and feature parameters: segment length, alpha, gamma
-for run in xrange(2):
+for run in xrange(3):
     segLens = [40, 80, 120]
     idx = np.load('./index/idx_705.npy')
     pH = np.load('pH.npy')
@@ -37,18 +37,18 @@ for run in xrange(2):
         healthy_data = data_pca[healthy]
 
         folder = 'time_freq_dim%d_%ds_feats_%dst_run' % (q, segLen/4, (run+1))
-        directory = './results/2_model/no_CV_average_hyper_param_pca_scaled/%s/' % folder
+        directory = './results/2_model_new/no_CV_average_hyper_param_pca_scaled/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
         # train two HDPGMM models
-        iteration = 60
-        max_iteration = 80
+        iteration = 80
+        max_iteration = 100
         step = 10
         hdpgmm_un = GibbsSampler(snapshot_interval=10, compute_loglik=True)
         hdpgmm_hl = GibbsSampler(snapshot_interval=10, compute_loglik=True)
 
-        hdpgmm_un._initialize(unhealthy_data)
-        hdpgmm_hl._initialize(healthy_data)
+        hdpgmm_un.initialize(unhealthy_data)
+        hdpgmm_hl.initialize(healthy_data)
 
         hdpgmm_un.sample(iteration)
         hdpgmm_un.pickle(directory, 'hdpgmm_un_%d-th_iter' % iteration)

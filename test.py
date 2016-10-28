@@ -35,7 +35,7 @@ np.save(directory + 'true_cluster', true_cluster)
 
 
 sampler = GibbsSampler(snapshot_interval=10, compute_loglik=True)
-sampler._initialize(data=data)
+sampler.initialize(data=data)
 snap_interval = 50
 iteration = 50
 for tmp in xrange(iteration/snap_interval):

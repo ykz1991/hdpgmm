@@ -4,7 +4,7 @@ import numpy as np
 import math
 import pickle
 import scipy.special as ssp
-from model_loglikelihood import dict2mix, mixture_logpdf, all_loglike
+from model_loglikelihood import dict2mix, all_loglike
 np.seterr(divide='ignore')
 
 
@@ -145,7 +145,7 @@ class GibbsSampler(object):
     @param alpha: the smoothing value for a word to be assigned to a new table
 
     """
-    def _initialize(self, data):
+    def initialize(self, data):
         # initialize the documents
         self._corpus = data
         # initialize the size of the collection, i.e., total number of documents.
@@ -213,6 +213,7 @@ class GibbsSampler(object):
         self.log_likelihoods = np.zeros(iteration)
         while iter < iteration:
             iter += 1
+
             # sample new w_alpha and s_alpha
             for iter_alpha in xrange(max_iter_alpha):
                 self._w_alpha = np.array([np.random.beta(self._alpha+1, np.sum(self._n_dt[j])) for j in xrange(self._D)])
@@ -342,13 +343,13 @@ class GibbsSampler(object):
                             self.params[old_topic].rm_point(x)
 
                         # compute the probability of assigning current table every topic
-                        topic_probability = np.zeros(self._K + 1, dtype=np.float128)
+                        topic_probability_log = np.zeros(self._K + 1, dtype=np.float128)
                         # first compute the log-likelihood of a new topic
-                        topic_probability[self._K] = 0.
+                        topic_probability_log[self._K] = 0.
                         for x in selected_word:
                             base_distribution = Gaussian(X=np.zeros((0, len(x))))
-                            topic_probability[self._K] += base_distribution.logpdf(x)
-                        topic_probability[self._K] += np.log(self._gamma)
+                            topic_probability_log[self._K] += base_distribution.logpdf(x)
+                        topic_probability_log[self._K] += np.log(self._gamma)
 
                         # compute the likelihood of each existing topic
                         for topic_index in xrange(self._K):
@@ -357,30 +358,30 @@ class GibbsSampler(object):
                                     # if current table is the only table assigned to current topic,
                                     # it means this topic is probably less useful or less generalizable to other documents,
                                     # it makes more sense to collapse this topic and hence assign this table to other topic.
-                                    topic_probability[topic_index] = -1e300
+                                    topic_probability_log[topic_index] = -1e500
                                 else:
                                     # if there are other tables assigned to current topic
                                     # topic_probability[topic_index] = 0.
                                     for x in selected_word:
-                                        assert self.params[topic_index].logpdf(x) > -np.inf
-                                        topic_probability[topic_index] += self.params[topic_index].logpdf(x)
+                                        assert self.params[topic_index].pdf(x) > 0.
+                                        topic_probability_log[topic_index] += self.params[topic_index].logpdf(x)
                                     # compute the prior if we move this table from this topic
                                     assert self._m_k[topic_index] - 1 > 0
-                                    topic_probability[topic_index] += np.log(self._m_k[topic_index] - 1)
+                                    topic_probability_log[topic_index] += np.log(self._m_k[topic_index] - 1)
                             else:
                                 # topic_probability[topic_index] = 0.
                                 for x in selected_word:
-                                    assert self.params[topic_index].logpdf(x) > -np.inf
-                                    topic_probability[topic_index] += self.params[topic_index].logpdf(x)
+                                    assert self.params[topic_index].pdf(x) > 0.
+                                    topic_probability_log[topic_index] += self.params[topic_index].logpdf(x)
                                 # assert self._m_k[topic_index] > 0
-                                topic_probability[topic_index] += np.log(self._m_k[topic_index])
+                                topic_probability_log[topic_index] += np.log(self._m_k[topic_index])
 
                         # normalize the distribution and sample new topic assignment for this topic
                         # if len(np.where(topic_probability <= -np.inf)[0]) != 0:
                         #    print np.where(topic_probability <= -np.inf)[0]
                         #    print 'number of topics ', self._K
                         # assert np.all(topic_probability > -np.inf)
-                        topic_probability = np.exp(topic_probability)
+                        topic_probability = np.exp(topic_probability_log)
                         assert np.sum(topic_probability) > 0.
                         topic_probability = topic_probability/np.sum(topic_probability)
 
@@ -415,8 +416,9 @@ class GibbsSampler(object):
 
             # compact all the parameters, including removing unused topics and unused tables
             self.compact_params()
+
             if self._flag_compute_loglik:
-                # print "gamma is %d, alpha is %d" % (self._gamma, self._alpha)
+                # print "gamma is %.2f, alpha is %.2f" % (self._gamma, self._alpha)
                 self.log_likelihoods[iter-1] = self.get_logpdf()
                 '''
                 if iter >= 2:
@@ -427,7 +429,7 @@ class GibbsSampler(object):
                 print "sampling in progress %2d%%" % (100 * iter / iteration)
                 print "total number of topics %i " % self._K
                 if self._flag_compute_loglik:
-                    print "gamma is %d, alpha is %d" % (self._gamma, self._alpha)
+                    print "gamma is %.2f, alpha is %.2f" % (self._gamma, self._alpha)
                     self.log_likelihoods[iter - 1] = self.get_logpdf()
                     print 'model log-likelihood is ', self.log_likelihoods[iter-1]
 
@@ -467,8 +469,6 @@ class GibbsSampler(object):
         assert(np.all(self._m_k >= 0))
         assert(np.all(self._k_dt[document_index] >= 0))
 
-    """
-    """
     def compact_params(self):
         # find unused and used topics
         unused_topics = np.nonzero(self._m_k == 0)[0]
@@ -510,13 +510,12 @@ class GibbsSampler(object):
         if data is None:
             data = self._corpus
         weights, dists = dict2mix(self.params)
-        tmp = 0.
-        for X in data:
-            tmp += all_loglike(X, weights, dists)
+        tmp = [all_loglike(X, weights, dists) for X in data]
+        loglik = np.sum(tmp)
         # add likelihood of alpha and gamma
-        tmp += (self._alpha_a - 1)*np.log(self._alpha) - self._alpha/self._alpha_b - self._alpha_a*np.log(self._alpha_b) - ssp.gammaln(self._alpha_a)
-        tmp += (self._gamma_a - 1)*np.log(self._gamma) - self._gamma/self._gamma_b - self._gamma_a*np.log(self._gamma_b) - ssp.gammaln(self._gamma_a)
-        return tmp
+        loglik += (self._alpha_a - 1)*np.log(self._alpha) - self._alpha/self._alpha_b - self._alpha_a*np.log(self._alpha_b) - ssp.gammaln(self._alpha_a)
+        loglik += (self._gamma_a - 1)*np.log(self._gamma) - self._gamma/self._gamma_b - self._gamma_a*np.log(self._gamma_b) - ssp.gammaln(self._gamma_a)
+        return loglik
 
     def pickle(self, path, filename):
         with file(path + filename, 'wb') as f:
