@@ -8,3 +8,4 @@ hdpgmm_class.py: define two class objects, gaussian mixture model and gibbs samp
 
 hdpgmm_cv.py: perform classification and cross-validation on FHR data using HPDGMMs
 
+The dataset can be found at http://physionet.org/physiobank/database/ctu-uhb-ctgdb/
