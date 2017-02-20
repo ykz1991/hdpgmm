@@ -4,9 +4,9 @@ import pickle
 from hdpgmm_class_v2 import GibbsSampler
 
 # 2, 2-dimensional Gaussian
-mean = [[0., 0.], [3., 1.], [1., -3.], [-3., -3.]]
+mean = [[0., 0.], [3., 3.], [-5., -3.]]
 cov = [[.5, 0.], [0., .5]]
-seg = 10
+seg = 5
 directory = './test/'
 
 color_iter = ['r', 'g', 'b', 'm', 'c']
@@ -36,8 +36,8 @@ np.save(directory + 'true_cluster', true_cluster)
 
 sampler = GibbsSampler(snapshot_interval=10, compute_loglik=True)
 sampler.initialize(data=data)
-snap_interval = 50
-iteration = 50
+snap_interval = 20
+iteration = 20
 for tmp in xrange(iteration/snap_interval):
     sampler.sample(snap_interval)
     kdt = sampler._k_dt

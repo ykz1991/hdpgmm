@@ -11,7 +11,7 @@ np.seterr(divide='ignore')
 
 # This version investigates jointly processing FHR and UA signals
 
-idx = np.load('./index/idx_705.npy')
+idx = np.load('./index/idx_705_unbalanced.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
 threshold = 7.05
@@ -21,8 +21,8 @@ label = (pH <= threshold).astype(int)                  # 1 for unhealthy, 0 for 
 n_fold = 5
 skf = StratifiedKFold(n_splits=n_fold)
 
-segLens = [40]
-qs = [3, 4]                           # dimension after PCA
+segLens = [40, 80, 120]
+qs = [2, 3, 4]                                         # dimension after PCA
 # Number of iteration in sampling
 iter_start = 60
 iter_stop = 90
@@ -30,12 +30,12 @@ iter_step = 10
 step = (iter_stop - iter_start) / iter_step
 for q in qs:
     for segLen in segLens:
-        feats = np.load('./features/mixed_featsFHR_time_freq_%d.npy' % segLen)
+        feats = np.load('./features/featsFHR_time_freq_%d.npy' % segLen)
         print 'segment length is %ds' % (segLen / 4), ', q is %d' % q
         data = feats[idx, :, :]                 # use certain recordings according to idx
 
-        folder = 'time_freq_dim%d_%ds_mixed_FHR' % (q, segLen/4)
-        directory = './results/2_model/CV_hyper_param_pca_scaled_7.05/%s/' % folder
+        folder = 'time_freq_dim%d_%ds_FHR' % (q, segLen/4)
+        directory = './results/2_model/CV_hyper_param_pca_scaled_7.05_unbalanced/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
 
@@ -111,42 +111,3 @@ for q in qs:
         print 'true positive rate is ', np.mean(tmp_tpr), 'std is ', np.std(tmp_tpr)
         print 'true negative rate is ', np.mean(tmp_tnr), 'std is ', np.std(tmp_tnr)
         print 'wra is ', np.mean(tmp_tpr) + np.mean(tmp_tnr) - 1
-'''
-alpha = 1.
-gamma = 1.
-folder = 'time_freq_feats_alpha_%d_gamma_%d' % (alpha, gamma)
-CV_idx = pickle.load(open('./results/2_model/CV/%s/CV_idx' % folder, 'rb'))
-# plt.figure()
-for run in CV_idx:
-    hdpgmm_un = pickle.load(open('./results/2_model/CV/%s/hdpgmm_un_%i_run' % (folder, run), 'rb'))
-    hdpgmm_hl = pickle.load(open('./results/2_model/CV/%s/hdpgmm_hl_%i_run' % (folder, run), 'rb'))
-
-    log_likelihood_un = hdpgmm_un.log_likelihoods
-    log_likelihood_hl = hdpgmm_hl.log_likelihoods
-    x = np.arange(1, 16)
-    plt.plot(x, log_likelihood_un, 'b', x, log_likelihood_hl, 'r')
-
-    test = CV_idx[run]['test']
-    weights_hl, dists_hl = dict2mix(hdpgmm_hl.params)
-    weights_un, dists_un = dict2mix(hdpgmm_un.params)
-    p0 = np.array([all_loglike(data[i], weights_hl, dists_hl) for i in test])
-    p1 = np.array([all_loglike(data[i], weights_un, dists_un) for i in test])
-    pred = (p0 < p1).astype(int)
-    y = (pH[test] < threshold).astype(int)
-    tmp_tpr[run] = 1.*np.sum(pred.astype(bool) & y.astype(bool))/np.sum(y)
-    tmp_tnr[run] = 1.*np.sum(~pred.astype(bool) & ~y.astype(bool))/(len(y) - np.sum(y))
-
-plt.xlim(1, 15)
-plt.xlabel('iteration')
-plt.ylabel('log-likelihood')
-plt.show()
-
-tpr = np.mean(tmp_tpr)
-tnr = np.mean(tmp_tnr)
-accuracy = np.mean(tmp_accuracy)
-np.save('./results/2_model/CV/%s/tpr' % folder, tmp_tpr)
-np.save('./results/2_model/CV/%s/tnr' % folder, tmp_tnr)
-print 'true positive rate is ', tpr
-print 'true negative rate is ', tnr
-print 'accuracy is ', accuracy
-'''

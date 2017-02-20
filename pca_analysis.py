@@ -1,4 +1,5 @@
 from sklearn.decomposition import PCA
+from sklearn import preprocessing
 import numpy as np
 
 idx = np.load('idx_ctu.npy')

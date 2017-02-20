@@ -1,41 +1,46 @@
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 import os
 from sklearn.model_selection import StratifiedKFold
 from model_loglikelihood import dict2mix, all_loglike
-from hdpgmm_class_v2 import GibbsSampler
+from hdpgmm_class_v3 import GibbsSampler
 from sklearn.decomposition import PCA
 from sklearn import preprocessing
 
 np.seterr(divide='ignore')
 
-# This version investigates jointly processing FHR and UA signals
+# This version investigates jointly processing FHR and UA signals (comparison with v3)
+# FHR and UA are combined after respective PCA
 
-idx = np.load('./index/idx_705.npy')
+idx = np.load('./index/idx_710_ua_35min.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
-threshold = 7.05
+threshold = 7.1
 unhealthy = np.where(pH <= threshold)[0]
 healthy = np.where(pH > threshold)[0]
 label = (pH <= threshold).astype(int)                  # 1 for unhealthy, 0 for healthy
 n_fold = 5
 skf = StratifiedKFold(n_splits=n_fold)
 
-segLens = [40]
-qs = [3, 4]                           # dimension after PCA
+segLens = [40, 80, 120]
+qs = [2, 3]                           # dimension after PCA
 # Number of iteration in sampling
-iter_start = 60
-iter_stop = 90
+iter_start = 80
+iter_stop = 100
 iter_step = 10
 step = (iter_stop - iter_start) / iter_step
 for q in qs:
     for segLen in segLens:
-        feats = np.load('./features/mixed_featsFHR_time_freq_%d.npy' % segLen)
-        print 'segment length is %ds' % (segLen / 4), ', q is %d' % q
-        data = feats[idx, :, :]                 # use certain recordings according to idx
+        feats_fhr = np.load('./features/5min_featsFHR_time_freq_%d.npy' % segLen)
+        feats_ua = np.load('./features/5min_featsUA_time_freq_%d.npy' % segLen)
+        # feats = np.concatenate((feats_fhr, feats_ua), axis=2)
+        print 'segment length is ', segLen, 'samples'
+        data = feats_fhr[idx, :, :]                 # use certain recordings according to idx
+        data_ua = feats_ua[idx]
 
-        folder = 'time_freq_dim%d_%ds_mixed_FHR' % (q, segLen/4)
-        directory = './results/2_model/CV_hyper_param_pca_scaled_7.05/%s/' % folder
+        folder = 'time_freq_dim%d_%ds_FHR_UA' % (q, segLen/4)
+        directory = './results/2_model/CV_hyper_param_pca_scaled_7.1_UA_movingWin/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
 
@@ -47,11 +52,19 @@ for q in qs:
 
         for train, test in skf.split(data, label):
             scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
+            scaler_ua = preprocessing.MinMaxScaler(feature_range=(-1, 1))
             pca = PCA(n_components=q)
+            pca_ua = PCA(n_components=2)
+
             shape_train = data[train].shape
             data_train_reshape = np.reshape(data[train], (shape_train[0] * shape_train[1], shape_train[2]))
             shape_test = data[test].shape
             data_test_reshape = np.reshape(data[test], (shape_test[0] * shape_test[1], shape_test[2]))
+
+            shape_train_ua = data_ua[train].shape
+            data_ua_train_reshape = np.reshape(data_ua[train], (shape_train_ua[0]*shape_train_ua[1], shape_train_ua[2]))
+            shape_test_ua = data_ua[test].shape
+            data_ua_test_reshape = np.reshape(data_ua[test], (shape_test_ua[0] * shape_test_ua[1], shape_test_ua[2]))
 
             data_train_pca_reshape_scaled = scaler.fit_transform(data_train_reshape)
             data_train_pca_reshape = pca.fit_transform(data_train_pca_reshape_scaled)
@@ -61,12 +74,26 @@ for q in qs:
 
             data_train_pca = np.reshape(data_train_pca_reshape, (shape_train[0], shape_train[1], q))
             data_test_pca = np.reshape(data_test_pca_reshape, (shape_test[0], shape_test[1], q))
+
+            # scale UA features
+            data_ua_train_reshape_scaled = scaler_ua.fit_transform(data_ua_train_reshape)
+            data_ua_train_reshape_pca = pca_ua.fit_transform(data_ua_train_reshape_scaled)
+            data_ua_test_reshape_scaled = scaler_ua.transform(data_ua_test_reshape)
+            data_ua_test_reshape_pca = pca_ua.transform(data_ua_test_reshape_scaled)
+            data_train_ua = np.reshape(data_ua_train_reshape_pca,
+                                       (shape_train_ua[0], shape_train_ua[1], 2))
+            data_test_ua = np.reshape(data_ua_test_reshape_pca,
+                                      (shape_test_ua[0], shape_test_ua[1], 2))
+
+            # concatenate FHR and UA features
+            data_train = np.concatenate((data_train_pca, data_train_ua), axis=2)
+            data_test = np.concatenate((data_test_pca, data_test_ua), axis=2)
             # train two HDPGMM models
             # initialization
-            hdpgmm_un = GibbsSampler(snapshot_interval=20)
-            hdpgmm_hl = GibbsSampler(snapshot_interval=20)
-            hdpgmm_un.initialize(data_train_pca[pH[train] <= threshold])
-            hdpgmm_hl.initialize(data_train_pca[pH[train] > threshold])
+            hdpgmm_un = GibbsSampler(snapshot_interval=50)
+            hdpgmm_hl = GibbsSampler(snapshot_interval=50)
+            hdpgmm_un.initialize(data_train[pH[train] <= threshold])
+            hdpgmm_hl.initialize(data_train[pH[train] > threshold])
 
             hdpgmm_un.sample(iter_start)
             hdpgmm_hl.sample(iter_start)
@@ -86,8 +113,8 @@ for q in qs:
                 # compute log-likelihood
                 weights_hl, dists_hl = dict2mix(hdpgmm_hl.params)
                 weights_un, dists_un = dict2mix(hdpgmm_un.params)
-                p0_all[:, iter] = np.array([all_loglike(d, weights_hl, dists_hl) for d in data_test_pca])
-                p1_all[:, iter] = np.array([all_loglike(d, weights_un, dists_un) for d in data_test_pca])
+                p0_all[:, iter] = np.array([all_loglike(d, weights_hl, dists_hl) for d in data_test])
+                p1_all[:, iter] = np.array([all_loglike(d, weights_un, dists_un) for d in data_test])
 
             print '%d-th run completed...' % (run+1)
             p0 = np.sum(p0_all, axis=1)

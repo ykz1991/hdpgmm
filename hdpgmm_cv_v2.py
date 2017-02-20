@@ -18,9 +18,14 @@ pH = pH[idx]
 threshold = 7.05
 unhealthy = np.where(pH <= threshold)[0]
 healthy = np.where(pH > threshold)[0]
+
+iter_start = 60
+iter_stop = 80
+iter_step = 10
+step = (iter_stop - iter_start) / iter_step
 label = pH <= threshold                  # 1 for unhealthy, 0 for healthy
 skf = StratifiedKFold(label, 5, shuffle=True)
-qs = [14]                           # dimension after PCA
+qs = [2, 3, 4]                           # dimension after PCA
 for q in qs:
     for segLen in segLens:
         feats = np.load('./features/feats_time_freq_%d.npy' % segLen)
@@ -37,10 +42,7 @@ for q in qs:
         tmp_tpr = np.zeros(len(skf))
         run = 0
         CV_idx = {}
-        iter_start = 60
-        iter_stop = 80
-        iter_step = 10
-        step = (iter_stop - iter_start) / iter_step
+
         for train, test in skf:
             scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
             pca = PCA(n_components=q)
@@ -61,8 +63,8 @@ for q in qs:
             # initialization
             hdpgmm_un = GibbsSampler(snapshot_interval=10)
             hdpgmm_hl = GibbsSampler(snapshot_interval=10)
-            hdpgmm_un._initialize(data_train_pca[pH[train] <= threshold])
-            hdpgmm_hl._initialize(data_train_pca[pH[train] > threshold])
+            hdpgmm_un.initialize(data_train_pca[pH[train] <= threshold])
+            hdpgmm_hl.initialize(data_train_pca[pH[train] > threshold])
 
             hdpgmm_un.sample(iter_start)
             hdpgmm_hl.sample(iter_start)
@@ -103,7 +105,7 @@ for q in qs:
         pickle.dump(CV_idx, open(directory + 'CV_idx', 'wb'))
         np.save(directory + 'tpr', tmp_tpr)
         np.save(directory + 'tnr', tmp_tnr)
-        print 'segment length is %ds' % (segLen / 4)
+        print 'segment length is %ds' % (segLen / 4), 'q is %d' % q
         print 'true positive rate is ', np.mean(tmp_tpr), 'std is ', np.std(tmp_tpr)
         print 'true negative rate is ', np.mean(tmp_tnr), 'std is ', np.std(tmp_tnr)
         print 'wra is ', np.mean(tmp_tpr) + np.mean(tmp_tnr) - 1

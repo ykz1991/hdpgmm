@@ -4,8 +4,10 @@ import numpy as np
 import math
 import pickle
 import scipy.special as ssp
+from scipy.special import gammaln
 from model_loglikelihood import dict2mix, all_loglike
 np.seterr(divide='ignore')
+import pdb, traceback, sys
 
 
 class Gaussian:
@@ -49,8 +51,8 @@ class Gaussian:
             self.default()
             return
         # update conjugate posterior parameters
-        kappa_n = self._kappa_0 + self.n
-        nu = self._nu_0 + self.n
+        self.kappa_n = self._kappa_0 + self.n
+        self.nu = self._nu_0 + self.n
         mu_hat = np.matrix(self._sum) / self.n
         mu_hat_mu_0 = mu_hat - self._mu_0
         C = self._square_sum - self.n*(mu_hat.transpose()*mu_hat)
@@ -58,7 +60,7 @@ class Gaussian:
             self._kappa_0 * self.n * mu_hat_mu_0.transpose() * mu_hat_mu_0 / (self._kappa_0 + self.n)
 
         self.mean = (self._kappa_0 * self._mu_0 + self.n * mu_hat) / (self._kappa_0 + self.n)
-        self.covar = (kappa_n + 1) / (kappa_n * (nu - self.dim + 1)) * Psi
+        self.covar = (self.kappa_n + 1) / (self.kappa_n * (self.nu - self.dim + 1)) * Psi
 
     def fit(self, X):  # fit data
         self._X = X
@@ -122,6 +124,17 @@ class Gaussian:
         x_mu = x - self.mean
         res = -.5 * (x_mu * self.covar.I * x_mu.transpose())
         return norm_const + res
+
+    def predictive_logpdf(self, x):
+        d = self.dim
+        df = self.nu - d + 1
+        assert d == self.mean.shape[1]
+        assert (d, d) == self.covar.shape
+        x_mu = x - self.mean
+        sign, res = np.linalg.slogdet(self.covar)
+        lognum = gammaln((d+df)/2.)
+        logdenom = gammaln(df/2.) + d/2.*np.log(df*np.pi) + 1/2.*res + (d+df)/2.*np.log(1+1./df * x_mu * self.covar.I * x_mu.transpose())
+        return lognum-logdenom
 
 
 class GibbsSampler(object):
@@ -207,8 +220,8 @@ class GibbsSampler(object):
     def sample(self, iteration):
         # sample the total data
         iter = 0
-        max_iter_alpha = 20
-        max_iter_gamma = 10
+        max_iter_alpha = 40
+        max_iter_gamma = 20
         # store log-likelihood for each iteration
         self.log_likelihoods = np.zeros(iteration)
         while iter < iteration:
@@ -247,7 +260,13 @@ class GibbsSampler(object):
                     flog = np.zeros(self._K, dtype=np.float128)
                     f_new_table = 0.
                     for k in xrange(self._K):
-                        flog[k] = self.params[k].logpdf(x)
+                        flog[k] = self.params[k].predictive_logpdf(x)
+                        try:
+                            assert not np.isnan(flog[k])
+                        except:
+                            type, value, tb = sys.exc_info()
+                            traceback.print_exc()
+                            pdb.post_mortem(tb)
                         f[k] = np.exp(flog[k])
                         f_new_table += self._m_k[k]*f[k]
                     base_distribution = Gaussian(X=np.zeros((0, len(x))))
@@ -279,6 +298,7 @@ class GibbsSampler(object):
                     # sample a new table this word should sit in
                     table_probability = np.exp(table_probability_log)
                     assert np.sum(table_probability) > 0.
+
                     table_probability /= np.sum(table_probability)
                     cdf = np.cumsum(table_probability)
                     new_table = np.uint8(np.nonzero(cdf >= np.random.random())[0][0])
@@ -363,16 +383,16 @@ class GibbsSampler(object):
                                     # if there are other tables assigned to current topic
                                     # topic_probability[topic_index] = 0.
                                     for x in selected_word:
-                                        assert self.params[topic_index].logpdf(x) > -np.inf
-                                        topic_probability_log[topic_index] += self.params[topic_index].logpdf(x)
+                                        assert self.params[topic_index].predictive_logpdf(x) > -np.inf
+                                        topic_probability_log[topic_index] += self.params[topic_index].predictive_logpdf(x)
                                     # compute the prior if we move this table from this topic
                                     assert self._m_k[topic_index] - 1 > 0
                                     topic_probability_log[topic_index] += np.log(self._m_k[topic_index] - 1)
                             else:
                                 # topic_probability[topic_index] = 0.
                                 for x in selected_word:
-                                    assert self.params[topic_index].logpdf(x) > -np.inf
-                                    topic_probability_log[topic_index] += self.params[topic_index].logpdf(x)
+                                    assert self.params[topic_index].predictive_logpdf(x) > -np.inf
+                                    topic_probability_log[topic_index] += self.params[topic_index].predictive_logpdf(x)
                                 # assert self._m_k[topic_index] > 0
                                 topic_probability_log[topic_index] += np.log(self._m_k[topic_index])
 

@@ -1,5 +1,6 @@
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 import os
 from sklearn.model_selection import StratifiedKFold
 from model_loglikelihood import dict2mix, all_loglike
@@ -9,33 +10,36 @@ from sklearn import preprocessing
 
 np.seterr(divide='ignore')
 
-# This version investigates jointly processing FHR and UA signals
+# This version investigates jointly processing FHR and UA signals (comparison with v3, v4)
+# FHR and UA are combined before PCA
 
-idx = np.load('./index/idx_705.npy')
+idx = np.load('./index/idx_710_ua_35min.npy')
 pH = np.load('pH.npy')
 pH = pH[idx]
-threshold = 7.05
+threshold = 7.1
 unhealthy = np.where(pH <= threshold)[0]
 healthy = np.where(pH > threshold)[0]
 label = (pH <= threshold).astype(int)                  # 1 for unhealthy, 0 for healthy
 n_fold = 5
 skf = StratifiedKFold(n_splits=n_fold)
 
-segLens = [40]
-qs = [3, 4]                           # dimension after PCA
+segLens = [40, 80, 120]
+qs = [5, 6]                           # dimension after PCA
 # Number of iteration in sampling
-iter_start = 60
-iter_stop = 90
+iter_start = 80
+iter_stop = 100
 iter_step = 10
 step = (iter_stop - iter_start) / iter_step
 for q in qs:
     for segLen in segLens:
-        feats = np.load('./features/mixed_featsFHR_time_freq_%d.npy' % segLen)
-        print 'segment length is %ds' % (segLen / 4), ', q is %d' % q
+        feats_fhr = np.load('./features/5min_featsFHR_time_freq_%d.npy' % segLen)
+        feats_ua = np.load('./features/5min_featsUA_time_freq_%d.npy' % segLen)
+        feats = np.concatenate((feats_fhr, feats_ua), axis=2)
+        print 'segment length is ', segLen, 'samples'
         data = feats[idx, :, :]                 # use certain recordings according to idx
 
-        folder = 'time_freq_dim%d_%ds_mixed_FHR' % (q, segLen/4)
-        directory = './results/2_model/CV_hyper_param_pca_scaled_7.05/%s/' % folder
+        folder = 'time_freq_dim%d_%ds_FHR_UA_beforePCA' % (q, segLen/4)
+        directory = './results/2_model/CV_hyper_param_pca_scaled_7.1_UA_movingWin/%s/' % folder
         if not os.path.isdir(directory):
             os.makedirs(directory)
 
@@ -48,6 +52,7 @@ for q in qs:
         for train, test in skf.split(data, label):
             scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
             pca = PCA(n_components=q)
+
             shape_train = data[train].shape
             data_train_reshape = np.reshape(data[train], (shape_train[0] * shape_train[1], shape_train[2]))
             shape_test = data[test].shape
@@ -61,10 +66,11 @@ for q in qs:
 
             data_train_pca = np.reshape(data_train_pca_reshape, (shape_train[0], shape_train[1], q))
             data_test_pca = np.reshape(data_test_pca_reshape, (shape_test[0], shape_test[1], q))
+
             # train two HDPGMM models
             # initialization
-            hdpgmm_un = GibbsSampler(snapshot_interval=20)
-            hdpgmm_hl = GibbsSampler(snapshot_interval=20)
+            hdpgmm_un = GibbsSampler(snapshot_interval=50)
+            hdpgmm_hl = GibbsSampler(snapshot_interval=50)
             hdpgmm_un.initialize(data_train_pca[pH[train] <= threshold])
             hdpgmm_hl.initialize(data_train_pca[pH[train] > threshold])
 
